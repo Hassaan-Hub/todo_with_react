@@ -32,12 +32,22 @@ const Dashboard = () => {
           setValue(e.target.value);
         }} />
         <button onClick={() => {
-          if(editIndex !== null){
-            // const updatedTodo = ((item, index)=>{
+            if (editIndex !== null) {
+              const updatedTodo = todo.map((item, index) => {
+                if (index === editIndex) {
+                  return value;
+                }
+                return item;
+              });
+              setTodo(updatedTodo);
 
-            // })
-          }
-        }}>Add Todo</button>
+              setEditIndex(null);
+              setValue("");
+            } else {
+              setTodo([...todo, value]);
+              setValue("");
+            }
+          }}>{editIndex !== null ? "Update Todo" : "Add Todo"}</button>
         <button onClick={() => {
           setTodo([])
         }}>Delete All</button>
