@@ -33,9 +33,9 @@ const Dashboard = () => {
         }} />
         <button onClick={() => {
           if(editIndex !== null){
-            const updatedTodo = ((item, index)=>{
-              
-            })
+            // const updatedTodo = ((item, index)=>{
+
+            // })
           }
         }}>Add Todo</button>
         <button onClick={() => {
