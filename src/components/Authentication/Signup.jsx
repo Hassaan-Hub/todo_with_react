@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
-import { useNavigate } from "react-router-dom";
+import { Route, Routes, useNavigate } from "react-router-dom";
 import { auth, createUserWithEmailAndPassword } from '../config/Firebase'
+import Login from './Login';
 
 const Signup = () => {
 
   const navigate = useNavigate();
-  navigate("/dashboard");
+  navigate("/login");
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -25,11 +26,19 @@ const Signup = () => {
       });
   }
 
+  const navigate1 = useNavigate()
+
   return (
     <div>
       <div>
+        <p>
+          Already have an account? {" "}
+          <button onClick={() => navigate1("/login")}>
+            Login
+          </button>
+        </p>
         <div>
-          Email <input type="text" value={email} onChange={(e) => {
+          Email <input type="email" value={email} onChange={(e) => {
             setEmail(e.target.value)
           }} />
           <br /><br />
