@@ -1,12 +1,11 @@
-import React from 'react'
-import Signup from './components/Authentication/Signup'
 import { Route, Routes } from 'react-router-dom'
+import Signup from './components/Authentication/Signup'
 import Dashboard from './components/Authentication/Dashboard'
 import Login from './components/Authentication/Login'
 
 const App = () => {
   return (
-    <div className='h-screen w-full bg-gray-500'>
+    <div className='min-h-screen w-full bg-slate-100'>
       <Routes>
         <Route path="/" element={<Signup />} />
 
