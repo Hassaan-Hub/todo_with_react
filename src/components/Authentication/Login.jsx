@@ -5,7 +5,7 @@ import { auth } from '../config/Firebase';
 
 const Login = () => {
 
-  const navigate1 = useNavigate()
+  const navigate = useNavigate()
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,29 +19,33 @@ const Login = () => {
     signInWithEmailAndPassword(auth, email, password)
       .then((userCredential) => {
         const user = userCredential.user;
-        navigate1("/dashboard");
+        navigate("/dashboard");
         console.log(user);
       })
       .catch((error) => {
-        const errorCode = error.code;
-        const errorMessage = error.message;
-        console.log(errorCode);
-        console.log(errorMessage);
-        console.log(error);
-        setError(errorMessage.replace("Firebase: ", "").replace(/\(auth\/[^)]+\)\.?/, "").trim())
+        console.log(error.code);
+        console.log(error.message);
+        setError(error.message.replace("Firebase: ", "").replace(/\(auth\/[^)]+\)\.?/, "").trim())
       })
       .finally(() => {
         setLoading(false)
       });
   }
 
-  const navigate = useNavigate()
-
   return (
     <div className="flex min-h-screen w-full items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg sm:p-8">
-        <h1 className="text-2xl font-bold text-slate-900">Log in</h1>
-        <p className="mt-1 text-sm text-slate-500">Welcome back! Log in to your account.</p>
+      <div className="relative w-full max-w-md overflow-hidden rounded-xl bg-white p-6 shadow-xl shadow-indigo-100/60 sm:p-8">
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-300" aria-hidden="true" />
+
+        <div className="flex flex-col items-center text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 shadow-md shadow-indigo-200/60">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+            </svg>
+          </div>
+          <h1 className="mt-4 text-2xl font-bold text-slate-900">Log in</h1>
+          <p className="mt-1 text-sm text-slate-500">Welcome back! Log in to your account.</p>
+        </div>
 
         {error && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700" role="alert">
@@ -88,7 +92,7 @@ const Login = () => {
                 type="button"
                 onClick={() => setShowPassword((s) => !s)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute inset-y-0 right-0 flex h-full w-11 items-center justify-center rounded-r-lg text-slate-400 transition-colors duration-150 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="absolute inset-y-0 right-0 flex h-full w-11 items-center justify-center rounded-r-lg text-slate-400 transition-colors duration-150 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 {showPassword ? (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -107,7 +111,7 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-indigo-500 active:scale-95 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-lg hover:shadow-indigo-200/60 active:translate-y-0 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? "Logging in…" : "Log in"}
           </button>

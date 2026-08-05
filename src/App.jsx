@@ -5,7 +5,7 @@ import Login from './components/Authentication/Login'
 
 const App = () => {
   return (
-    <div className='min-h-screen w-full bg-slate-100'>
+    <div className='min-h-screen w-full bg-gradient-to-br from-slate-50 via-slate-50 to-indigo-50'>
       <Routes>
         <Route path="/" element={<Signup />} />
 

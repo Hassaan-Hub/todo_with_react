@@ -1,11 +1,13 @@
 import { signOut } from 'firebase/auth';
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../config/Firebase';
 
 const Dashboard = () => {
 
   const navigate = useNavigate()
+  const inputRef = useRef(null)
+  const editAreaRef = useRef(null)
 
   const logout = () => {
     signOut(auth)
@@ -27,7 +29,6 @@ const Dashboard = () => {
     if (!value.trim()) return;
     if (editIndex !== null) {
       setTodo(todo.map((item, index) => (index === editIndex ? value : item)));
-      setCompleted(completed.map((done, index) => (index === editIndex ? false : done)));
       setEditIndex(null);
       setValue("");
     } else {
@@ -35,6 +36,7 @@ const Dashboard = () => {
       setCompleted([...completed, false]);
       setValue("");
     }
+    inputRef.current?.focus();
   };
 
   const deleteTodo = (index) => {
@@ -55,28 +57,49 @@ const Dashboard = () => {
   const startEdit = (index) => {
     setValue(todo[index]);
     setEditIndex(index);
+    inputRef.current?.focus();
   };
 
   const cancelEdit = () => {
     setEditIndex(null);
     setValue("");
+    inputRef.current?.focus();
   };
+
+  useEffect(() => {
+    if (editIndex === null) return;
+    const handleClick = (e) => {
+      if (editAreaRef.current && !editAreaRef.current.contains(e.target)) {
+        setEditIndex(null);
+        setValue("");
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [editIndex]);
 
   const pendingCount = todo.filter((_, i) => !completed[i]).length;
 
   return (
-    <div className="min-h-screen w-full bg-slate-100">
-      <header className="bg-white shadow-sm">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-slate-50 to-indigo-50">
+      <header className="sticky top-0 z-10 bg-white/90 shadow-sm backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-slate-900">My Todos</h1>
-            <p className="truncate text-xs text-slate-500">
-              {todo.length === 0 ? "No tasks yet" : `${todo.length} ${todo.length === 1 ? "task" : "tasks"} · ${pendingCount} pending`}
-            </p>
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 shadow-sm shadow-indigo-200/60">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-bold text-slate-900">My Todos</h1>
+              <p className="truncate text-xs text-slate-500">
+                {todo.length === 0 ? "No tasks yet" : `${todo.length} ${todo.length === 1 ? "task" : "tasks"} · ${pendingCount} pending`}
+              </p>
+            </div>
           </div>
           <button
             onClick={() => logout()}
-            className="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors duration-150 hover:bg-slate-50 hover:text-slate-900"
+            className="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition-all duration-150 hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
           >
             Sign out
           </button>
@@ -84,41 +107,57 @@ const Dashboard = () => {
       </header>
 
       <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="rounded-lg bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addOrUpdateTodo(); }}
-              placeholder={editIndex !== null ? "Edit your task…" : "Add a new task…"}
-              aria-label="Todo text"
-              className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors duration-150 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            />
-            <button
-              onClick={addOrUpdateTodo}
-              className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:bg-indigo-500 active:scale-95"
-            >
-              {editIndex !== null ? "Update" : "Add"}
-            </button>
-          </div>
-
-          {editIndex !== null && (
-            <div className="mt-2 flex items-center justify-between">
-              <p className="text-xs text-slate-500">Editing this task.</p>
+        <div className="rounded-xl bg-white p-5 shadow-xl shadow-indigo-100/60 sm:p-6">
+          <div ref={editAreaRef}>
+            <div className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addOrUpdateTodo();
+                  } else if (e.key === "Escape" && editIndex !== null) {
+                    cancelEdit();
+                  }
+                }}
+                placeholder={editIndex !== null ? "Edit your task…" : "Add a new task…"}
+                aria-label="Todo text"
+                className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors duration-150 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              />
               <button
                 type="button"
-                onClick={cancelEdit}
-                className="rounded px-2 py-1 text-xs font-medium text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onClick={addOrUpdateTodo}
+                className="shrink-0 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-lg hover:shadow-indigo-200/60 active:translate-y-0 active:scale-[0.98]"
               >
-                Cancel
+                {editIndex !== null ? "Update" : "Add"}
               </button>
             </div>
-          )}
+
+            {editIndex !== null && (
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-xs text-slate-500">Editing this task. Press Enter to save, Esc to cancel.</p>
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="rounded px-2 py-1 text-xs font-medium text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
 
           {todo.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-base font-semibold text-slate-700">No todos yet</p>
+            <div className="py-14 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p className="mt-4 text-base font-semibold text-slate-700">No todos yet</p>
               <p className="mt-1 text-sm text-slate-500">Add one above to get started.</p>
             </div>
           ) : (
@@ -127,7 +166,9 @@ const Dashboard = () => {
                 {todo.map((v, i) => (
                   <li
                     key={i}
-                    className="group flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2 transition-colors duration-150 hover:bg-white hover:shadow-sm"
+                    className={`group flex items-center gap-3 rounded-lg border border-slate-200 border-l-4 px-3 py-2 transition-all duration-200 hover:bg-white hover:shadow-sm ${
+                      completed[i] ? "border-l-green-400 bg-green-50/40" : "border-l-indigo-400 bg-slate-50/60"
+                    }`}
                   >
                     <input
                       type="checkbox"
@@ -136,8 +177,16 @@ const Dashboard = () => {
                       aria-label={`Mark "${v}" as ${completed[i] ? "active" : "complete"}`}
                       className="h-5 w-5 shrink-0 cursor-pointer accent-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                     />
-                    <span className={`min-w-0 flex-1 truncate text-sm ${completed[i] ? "text-slate-400 line-through" : "text-slate-800"}`}>
-                      {v}
+                    <span className="relative min-w-0 flex-1 text-sm">
+                      <span className={`block truncate transition-colors duration-300 ${completed[i] ? "text-slate-400" : "text-slate-800"}`}>
+                        {v}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className={`absolute left-0 top-1/2 h-0.5 w-full origin-left -translate-y-1/2 rounded-full bg-green-400 transition-transform duration-300 ease-out ${
+                          completed[i] ? "scale-x-100" : "scale-x-0"
+                        }`}
+                      />
                     </span>
                     <div className="flex shrink-0 items-center gap-1">
                       <button
@@ -170,7 +219,7 @@ const Dashboard = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirm(true)}
-                  className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors duration-150 hover:bg-red-50"
+                  className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition-all duration-150 hover:-translate-y-0.5 hover:border-red-400 hover:bg-red-50 hover:shadow-sm"
                 >
                   Delete All
                 </button>
@@ -182,8 +231,8 @@ const Dashboard = () => {
 
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-          <div className="absolute inset-0 bg-slate-900/50" onClick={() => setShowConfirm(false)} />
-          <div className="relative w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
+          <div className="absolute inset-0 animate-fade-in bg-slate-900/50" onClick={() => setShowConfirm(false)} />
+          <div className="relative w-full max-w-sm animate-fade-in-scale rounded-xl bg-white p-6 shadow-2xl">
             <h2 id="confirm-title" className="text-lg font-bold text-slate-900">Delete all todos?</h2>
             <p className="mt-1 text-sm text-slate-500">
               This will permanently remove all {todo.length} of your tasks. This action cannot be undone.
@@ -192,14 +241,14 @@ const Dashboard = () => {
               <button
                 type="button"
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors duration-150 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 active:scale-95"
+                className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition-all duration-150 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 active:scale-[0.98]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={clearAll}
-                className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
+                className="flex-1 rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-200/60 transition-all duration-150 hover:-translate-y-0.5 hover:from-red-500 hover:to-red-400 hover:shadow-lg hover:shadow-red-200/60 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-[0.98]"
               >
                 Delete all
               </button>
