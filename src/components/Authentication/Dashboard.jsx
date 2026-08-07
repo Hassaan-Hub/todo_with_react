@@ -10,7 +10,8 @@ import {
   addDoc,
   getDocs,
   deleteDoc,
-  doc
+  doc,
+  writeBatch,
 } from "firebase/firestore";
 
 
@@ -79,11 +80,11 @@ const Dashboard = () => {
 
   const deletTodoDatabase = async (id) => {
     try {
-      await deleteDoc(doc(db, "Todos", id))
-      
+      await deleteDoc(doc(db, "todos", id))
+
       console.log("todo deleted successfully");
       await getTodos();
-      
+
       console.log("Todo Reloaded");
 
     } catch (error) {
@@ -108,10 +109,29 @@ const Dashboard = () => {
     setCompleted(completed.map((done, i) => (i === index ? !done : done)));
   };
 
-  const clearAll = () => {
-    setTodo([]);
-    setCompleted([]);
-    setShowConfirm(false);
+  const clearAll = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "todos"));
+
+      const batch = writeBatch(db);
+
+      querySnapshot.forEach((document)=>{
+        batch.delete(document.ref)
+      }),
+
+      await batch.commit();
+
+      await getTodos();
+
+      setCompleted([]);
+      setShowConfirm(false);
+
+      console.log("all todos deleted");
+      
+
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const startEdit = (index) => {
