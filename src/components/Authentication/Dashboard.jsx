@@ -1,7 +1,19 @@
 import { signOut } from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../config/Firebase';
+import { auth, db } from '../config/Firebase';
+
+
+
+import {
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc
+} from "firebase/firestore";
+
+
 
 const Dashboard = () => {
 
@@ -25,6 +37,60 @@ const Dashboard = () => {
   const [completed, setCompleted] = useState([]);
   const [showConfirm, setShowConfirm] = useState(false);
 
+
+  const addTodoDataBase = async () => {
+    try {
+      await addDoc(collection(db, "todos"), {
+        title: value
+      })
+      await getTodos();
+
+      alert("addTodo")
+
+      setValue("");
+    } catch (error) {
+      console.log(error.message);
+    }
+  }
+
+
+  const getTodos = async () => {
+    try {
+      const querySnapshot = await getDocs(
+        collection(db, "todos")
+      );
+      const todosArray = [];
+      querySnapshot.forEach((doc) => {
+        todosArray.push({
+          id: doc.id,
+          ...doc.data()
+        })
+      });
+      console.log(todosArray);
+      setTodo(todosArray)
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  useEffect(() => {
+    getTodos();
+  }, [])
+
+
+  const deletTodoDatabase = async (id) => {
+    try {
+      await deleteDoc(doc(db, "Todos", id))
+      
+      console.log("todo deleted successfully");
+      await getTodos();
+      
+      console.log("Todo Reloaded");
+
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
   const addOrUpdateTodo = () => {
     if (!value.trim()) return;
     if (editIndex !== null) {
@@ -32,16 +98,10 @@ const Dashboard = () => {
       setEditIndex(null);
       setValue("");
     } else {
-      setTodo([...todo, value]);
       setCompleted([...completed, false]);
       setValue("");
     }
     inputRef.current?.focus();
-  };
-
-  const deleteTodo = (index) => {
-    setTodo(todo.filter((_, i) => i !== index));
-    setCompleted(completed.filter((_, i) => i !== index));
   };
 
   const toggleTodo = (index) => {
@@ -55,7 +115,7 @@ const Dashboard = () => {
   };
 
   const startEdit = (index) => {
-    setValue(todo[index]);
+    setValue(todo[index].title);
     setEditIndex(index);
     inputRef.current?.focus();
   };
@@ -115,21 +175,14 @@ const Dashboard = () => {
                 type="text"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addOrUpdateTodo();
-                  } else if (e.key === "Escape" && editIndex !== null) {
-                    cancelEdit();
-                  }
-                }}
                 placeholder={editIndex !== null ? "Edit your task…" : "Add a new task…"}
                 aria-label="Todo text"
                 className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors duration-150 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
               />
               <button
                 type="button"
-                onClick={addOrUpdateTodo}
+                onClick={addTodoDataBase}
+                // onClick={addOrUpdateTodo}
                 className="shrink-0 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-lg hover:shadow-indigo-200/60 active:translate-y-0 active:scale-[0.98]"
               >
                 {editIndex !== null ? "Update" : "Add"}
@@ -166,33 +219,31 @@ const Dashboard = () => {
                 {todo.map((v, i) => (
                   <li
                     key={i}
-                    className={`group flex items-center gap-3 rounded-lg border border-slate-200 border-l-4 px-3 py-2 transition-all duration-200 hover:bg-white hover:shadow-sm ${
-                      completed[i] ? "border-l-green-400 bg-green-50/40" : "border-l-indigo-400 bg-slate-50/60"
-                    }`}
+                    className={`group flex items-center gap-3 rounded-lg border border-slate-200 border-l-4 px-3 py-2 transition-all duration-200 hover:bg-white hover:shadow-sm ${completed[i] ? "border-l-green-400 bg-green-50/40" : "border-l-indigo-400 bg-slate-50/60"
+                      }`}
                   >
                     <input
                       type="checkbox"
                       checked={completed[i] || false}
                       onChange={() => toggleTodo(i)}
-                      aria-label={`Mark "${v}" as ${completed[i] ? "active" : "complete"}`}
+                      aria-label={`Mark "${v.title}" as ${completed[i] ? "active" : "complete"}`}
                       className="h-5 w-5 shrink-0 cursor-pointer accent-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                     />
                     <span className="relative min-w-0 flex-1 text-sm">
                       <span className={`block truncate transition-colors duration-300 ${completed[i] ? "text-slate-400" : "text-slate-800"}`}>
-                        {v}
+                        {v.title}
                       </span>
                       <span
                         aria-hidden="true"
-                        className={`absolute left-0 top-1/2 h-0.5 w-full origin-left -translate-y-1/2 rounded-full bg-green-400 transition-transform duration-300 ease-out ${
-                          completed[i] ? "scale-x-100" : "scale-x-0"
-                        }`}
+                        className={`absolute left-0 top-1/2 h-0.5 w-full origin-left -translate-y-1/2 rounded-full bg-green-400 transition-transform duration-300 ease-out ${completed[i] ? "scale-x-100" : "scale-x-0"
+                          }`}
                       />
                     </span>
                     <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
                         onClick={() => startEdit(i)}
-                        aria-label={`Edit "${v}"`}
+                        aria-label={`Edit "${v.title}"`}
                         className="rounded p-1 text-slate-400 transition-colors duration-150 hover:bg-indigo-50 hover:text-indigo-600"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -201,8 +252,11 @@ const Dashboard = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => deleteTodo(i)}
-                        aria-label={`Delete "${v}"`}
+                        onClick={() => {
+                          console.log(v.id);
+                          deletTodoDatabase(v.id);
+                        }}
+                        aria-label={`Delete "${v.title}"`}
                         className="rounded p-1 text-slate-400 transition-colors duration-150 hover:bg-red-50 hover:text-red-600"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
