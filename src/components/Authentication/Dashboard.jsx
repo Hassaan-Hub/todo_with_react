@@ -12,6 +12,7 @@ import {
   deleteDoc,
   doc,
   writeBatch,
+  updateDoc,
 } from "firebase/firestore";
 
 
@@ -92,10 +93,30 @@ const Dashboard = () => {
     }
   }
 
+
+  const updateTodoDatabase = async (id) => {
+    try {
+      await updateDoc(doc(db, "todos", id), {
+        title: value
+      });
+      console.log("todo updated successfully");
+
+      await getTodos();
+
+      setValue("");
+      setEditIndex(null);
+
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+
+
+
   const addOrUpdateTodo = () => {
     if (!value.trim()) return;
     if (editIndex !== null) {
-      setTodo(todo.map((item, index) => (index === editIndex ? value : item)));
       setEditIndex(null);
       setValue("");
     } else {
@@ -201,8 +222,13 @@ const Dashboard = () => {
               />
               <button
                 type="button"
-                onClick={addTodoDataBase}
-                // onClick={addOrUpdateTodo}
+                onClick={() => {
+                  if(editIndex !== null){
+                    updateTodoDatabase(todo[editIndex].id);
+                  }else{
+                    addTodoDataBase();
+                  }
+                }}
                 className="shrink-0 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-lg hover:shadow-indigo-200/60 active:translate-y-0 active:scale-[0.98]"
               >
                 {editIndex !== null ? "Update" : "Add"}
