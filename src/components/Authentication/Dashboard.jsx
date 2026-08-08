@@ -115,11 +115,11 @@ const Dashboard = () => {
 
       const batch = writeBatch(db);
 
-      querySnapshot.forEach((document)=>{
+      querySnapshot.forEach((document) => {
         batch.delete(document.ref)
       }),
 
-      await batch.commit();
+        await batch.commit();
 
       await getTodos();
 
@@ -127,7 +127,7 @@ const Dashboard = () => {
       setShowConfirm(false);
 
       console.log("all todos deleted");
-      
+
 
     } catch (error) {
       console.log(error);
@@ -173,7 +173,7 @@ const Dashboard = () => {
             <div className="min-w-0">
               <h1 className="truncate text-lg font-bold text-slate-900">My Todos</h1>
               <p className="truncate text-xs text-slate-500">
-                {todo.length === 0 ? "No tasks yet" : `${todo.length} ${todo.length === 1 ? "task" : "tasks"} · ${pendingCount} pending`}
+                {todo.length === 0 ? "No tasks yet" : `${todo.length} task${todo.length > 1 ? "s" : ""} in total`}
               </p>
             </div>
           </div>
@@ -242,13 +242,6 @@ const Dashboard = () => {
                     className={`group flex items-center gap-3 rounded-lg border border-slate-200 border-l-4 px-3 py-2 transition-all duration-200 hover:bg-white hover:shadow-sm ${completed[i] ? "border-l-green-400 bg-green-50/40" : "border-l-indigo-400 bg-slate-50/60"
                       }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={completed[i] || false}
-                      onChange={() => toggleTodo(i)}
-                      aria-label={`Mark "${v.title}" as ${completed[i] ? "active" : "complete"}`}
-                      className="h-5 w-5 shrink-0 cursor-pointer accent-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    />
                     <span className="relative min-w-0 flex-1 text-sm">
                       <span className={`block truncate transition-colors duration-300 ${completed[i] ? "text-slate-400" : "text-slate-800"}`}>
                         {v.title}
@@ -289,7 +282,7 @@ const Dashboard = () => {
               </ul>
 
               <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4">
-                <p className="text-xs text-slate-500">{pendingCount} of {todo.length} pending</p>
+                <p className="text-xs text-slate-500">{todo.length} task{todo.length !== 1 ? "s" : ""} in total</p>
                 <button
                   type="button"
                   onClick={() => setShowConfirm(true)}
