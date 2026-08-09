@@ -206,7 +206,6 @@ const Dashboard = () => {
           </button>
         </div>
       </header>
-
       <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
         <div className="rounded-xl bg-white p-5 shadow-xl shadow-indigo-100/60 sm:p-6">
           <div ref={editAreaRef}>
