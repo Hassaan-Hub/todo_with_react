@@ -15,6 +15,8 @@ import {
   updateDoc,
 } from "firebase/firestore";
 
+import Spinner from "../Spinner";
+
 
 
 const Dashboard = () => {
@@ -23,14 +25,17 @@ const Dashboard = () => {
   const inputRef = useRef(null)
   const editAreaRef = useRef(null)
 
-  const logout = () => {
-    signOut(auth)
-      .then(() => {
-        navigate("/login")
-        console.log("log out hogaya");
-      }).catch((error) => {
-        console.log(error);
-      });
+  const logout = async () => {
+    setLoggingOut(true)
+    try {
+      await signOut(auth)
+      navigate("/login")
+      console.log("log out hogaya");
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
   const [todo, setTodo] = useState([]);
@@ -39,21 +44,12 @@ const Dashboard = () => {
   const [completed, setCompleted] = useState([]);
   const [showConfirm, setShowConfirm] = useState(false);
 
-
-  const addTodoDataBase = async () => {
-    try {
-      await addDoc(collection(db, "todos"), {
-        title: value
-      })
-      await getTodos();
-
-      alert("addTodo")
-
-      setValue("");
-    } catch (error) {
-      console.log(error.message);
-    }
-  }
+  const [fetching, setFetching] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [clearing, setClearing] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
 
   const getTodos = async () => {
@@ -75,11 +71,35 @@ const Dashboard = () => {
     }
   }
   useEffect(() => {
-    getTodos();
+    const loadTodos = async () => {
+      setFetching(true);
+      await getTodos();
+      setFetching(false);
+    };
+    loadTodos();
   }, [])
 
 
+  const addTodoDataBase = async () => {
+    if (!value.trim()) return;
+    setAdding(true)
+    try {
+      await addDoc(collection(db, "todos"), {
+        title: value
+      })
+      await getTodos();
+
+      setValue("");
+    } catch (error) {
+      console.log(error.message);
+    } finally {
+      setAdding(false)
+    }
+  }
+
+
   const deletTodoDatabase = async (id) => {
+    setDeletingId(id);
     try {
       await deleteDoc(doc(db, "todos", id))
 
@@ -90,11 +110,14 @@ const Dashboard = () => {
 
     } catch (error) {
       console.log(error);
+    } finally {
+      setDeletingId(null);
     }
   }
 
 
   const updateTodoDatabase = async (id) => {
+    setUpdating(true)
     try {
       await updateDoc(doc(db, "todos", id), {
         title: value
@@ -108,29 +131,14 @@ const Dashboard = () => {
 
     } catch (error) {
       console.log(error);
+    } finally {
+      setUpdating(false)
     }
   }
 
 
-
-
-  const addOrUpdateTodo = () => {
-    if (!value.trim()) return;
-    if (editIndex !== null) {
-      setEditIndex(null);
-      setValue("");
-    } else {
-      setCompleted([...completed, false]);
-      setValue("");
-    }
-    inputRef.current?.focus();
-  };
-
-  const toggleTodo = (index) => {
-    setCompleted(completed.map((done, i) => (i === index ? !done : done)));
-  };
-
   const clearAll = async () => {
+    setClearing(true);
     try {
       const querySnapshot = await getDocs(collection(db, "todos"));
 
@@ -149,10 +157,15 @@ const Dashboard = () => {
 
       console.log("all todos deleted");
 
-
     } catch (error) {
       console.log(error);
+    } finally {
+      setClearing(false);
     }
+  };
+
+  const toggleTodo = (index) => {
+    setCompleted(completed.map((done, i) => (i === index ? !done : done)));
   };
 
   const startEdit = (index) => {
@@ -179,14 +192,32 @@ const Dashboard = () => {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [editIndex]);
 
-  const pendingCount = todo.filter((_, i) => !completed[i]).length;
+  const inputBusy = adding || updating;
+  const totalCount = todo.length;
+  const completedCount = todo.filter((_, i) => completed[i]).length;
+  const pendingCount = totalCount - completedCount;
+
+  const handleKeyDown = (e) => {
+    if (inputBusy) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (editIndex !== null) {
+        updateTodoDatabase(todo[editIndex].id);
+      } else {
+        addTodoDataBase();
+      }
+    }
+    if (e.key === "Escape" && editIndex !== null) {
+      cancelEdit();
+    }
+  };
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-50 via-slate-50 to-indigo-50">
       <header className="sticky top-0 z-10 bg-white/90 shadow-sm backdrop-blur">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-600 shadow-sm shadow-indigo-200/60">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-400 shadow-md shadow-indigo-200/60">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -194,20 +225,22 @@ const Dashboard = () => {
             <div className="min-w-0">
               <h1 className="truncate text-lg font-bold text-slate-900">My Todos</h1>
               <p className="truncate text-xs text-slate-500">
-                {todo.length === 0 ? "No tasks yet" : `${todo.length} task${todo.length > 1 ? "s" : ""} in total`}
+                {totalCount === 0 ? "No tasks yet" : `${totalCount} task${totalCount > 1 ? "s" : ""} in total`}
               </p>
             </div>
           </div>
           <button
-            onClick={() => logout()}
-            className="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition-all duration-150 hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
+            onClick={logout}
+            disabled={loggingOut}
+            className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition-all duration-150 hover:-translate-y-0.5 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-transparent disabled:hover:shadow-none"
           >
-            Sign out
+            {loggingOut && <Spinner className="h-3.5 w-3.5 text-slate-500" />}
+            {loggingOut ? "Signing out…" : "Sign out"}
           </button>
         </div>
       </header>
-      <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="rounded-xl bg-white p-5 shadow-xl shadow-indigo-100/60 sm:p-6">
+      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
+        <div className="rounded-2xl bg-white p-5 shadow-xl shadow-indigo-100/60 ring-1 ring-slate-200/60 sm:p-6">
           <div ref={editAreaRef}>
             <div className="flex gap-2">
               <input
@@ -215,32 +248,37 @@ const Dashboard = () => {
                 type="text"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={inputBusy}
                 placeholder={editIndex !== null ? "Edit your task…" : "Add a new task…"}
                 aria-label="Todo text"
-                className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors duration-150 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors duration-150 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:opacity-60"
               />
               <button
                 type="button"
                 onClick={() => {
-                  if(editIndex !== null){
+                  if (editIndex !== null) {
                     updateTodoDatabase(todo[editIndex].id);
-                  }else{
+                  } else {
                     addTodoDataBase();
                   }
                 }}
-                className="shrink-0 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-lg hover:shadow-indigo-200/60 active:translate-y-0 active:scale-[0.98]"
+                disabled={inputBusy || !value.trim()}
+                className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/60 transition-all duration-200 hover:-translate-y-0.5 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-lg hover:shadow-indigo-200/60 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:from-indigo-600 disabled:hover:to-indigo-500 disabled:hover:shadow-md"
               >
-                {editIndex !== null ? "Update" : "Add"}
+                {inputBusy && <Spinner className="h-4 w-4" />}
+                {inputBusy ? (updating ? "Updating…" : "Adding…") : (editIndex !== null ? "Update" : "Add")}
               </button>
             </div>
 
             {editIndex !== null && (
-              <div className="mt-2 flex items-center justify-between">
-                <p className="text-xs text-slate-500">Editing this task. Press Enter to save, Esc to cancel.</p>
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-indigo-100 bg-indigo-50/70 px-3 py-2">
+                <p className="text-xs font-medium text-indigo-700">Editing this task. Press Enter to save, Esc to cancel.</p>
                 <button
                   type="button"
                   onClick={cancelEdit}
-                  className="rounded px-2 py-1 text-xs font-medium text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={inputBusy}
+                  className="shrink-0 rounded px-2 py-1 text-xs font-semibold text-indigo-600 transition-colors duration-150 hover:bg-indigo-100 hover:text-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Cancel
                 </button>
@@ -248,27 +286,74 @@ const Dashboard = () => {
             )}
           </div>
 
-          {todo.length === 0 ? (
-            <div className="py-14 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-indigo-50">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+          {totalCount > 0 && (
+            <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-center ring-1 ring-slate-200/70">
+                <p className="text-lg font-bold text-slate-900">{totalCount}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">All</p>
+              </div>
+              <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-center ring-1 ring-amber-200/70">
+                <p className="text-lg font-bold text-amber-700">{pendingCount}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Pending</p>
+              </div>
+              <div className="rounded-xl bg-green-50 px-3 py-2.5 text-center ring-1 ring-green-200/70">
+                <p className="text-lg font-bold text-green-700">{completedCount}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-green-600">Done</p>
+              </div>
+            </div>
+          )}
+
+          {fetching ? (
+            <div className="mt-5 space-y-3" role="status" aria-label="Loading todos">
+              {[...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="flex animate-pulse items-center gap-3 rounded-xl border border-slate-200 border-l-4 border-l-slate-300 bg-slate-50/60 px-3.5 py-3"
+                >
+                  <div className="h-5 w-5 shrink-0 rounded-full bg-slate-200" />
+                  <div className="h-4 min-w-0 flex-1 rounded-full bg-slate-200" />
+                  <div className="h-4 w-4 shrink-0 rounded bg-slate-200" />
+                  <div className="h-4 w-4 shrink-0 rounded bg-slate-200" />
+                </div>
+              ))}
+              <span className="sr-only">Loading your todos…</span>
+            </div>
+          ) : totalCount === 0 ? (
+            <div className="py-16 text-center">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-50 to-indigo-100 ring-1 ring-indigo-100">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <p className="mt-4 text-base font-semibold text-slate-700">No todos yet</p>
-              <p className="mt-1 text-sm text-slate-500">Add one above to get started.</p>
+              <h2 className="mt-5 text-lg font-bold text-slate-800">No todos yet</h2>
+              <p className="mt-1 text-sm text-slate-500">Add your first task above and start being productive.</p>
             </div>
           ) : (
             <>
-              <ul className="mt-5 space-y-2">
+              <ul className="mt-5 space-y-2.5">
                 {todo.map((v, i) => (
                   <li
                     key={i}
-                    className={`group flex items-center gap-3 rounded-lg border border-slate-200 border-l-4 px-3 py-2 transition-all duration-200 hover:bg-white hover:shadow-sm ${completed[i] ? "border-l-green-400 bg-green-50/40" : "border-l-indigo-400 bg-slate-50/60"
+                    className={`group flex items-center gap-3 rounded-xl border border-slate-200 border-l-4 px-3.5 py-3 transition-all duration-200 hover:shadow-md hover:shadow-slate-200/60 ${completed[i] ? "border-l-green-400 bg-green-50/40" : "border-l-indigo-400 bg-slate-50/60"
                       }`}
                   >
+                    <button
+                      type="button"
+                      onClick={() => toggleTodo(i)}
+                      aria-label={completed[i] ? `Mark "${v.title}" as pending` : `Mark "${v.title}" as done`}
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${completed[i]
+                        ? "border-green-500 bg-green-500 text-white"
+                        : "border-slate-300 bg-white text-transparent hover:border-indigo-500 hover:text-indigo-500"
+                        }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
+
                     <span className="relative min-w-0 flex-1 text-sm">
-                      <span className={`block truncate transition-colors duration-300 ${completed[i] ? "text-slate-400" : "text-slate-800"}`}>
+                      <span className={`block truncate transition-colors duration-300 ${completed[i] ? "text-slate-400 line-through" : "text-slate-800"
+                        }`}>
                         {v.title}
                       </span>
                       <span
@@ -281,8 +366,9 @@ const Dashboard = () => {
                       <button
                         type="button"
                         onClick={() => startEdit(i)}
+                        disabled={deletingId === v.id}
                         aria-label={`Edit "${v.title}"`}
-                        className="rounded p-1 text-slate-400 transition-colors duration-150 hover:bg-indigo-50 hover:text-indigo-600"
+                        className="rounded p-1.5 text-slate-400 transition-colors duration-150 hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
@@ -294,24 +380,30 @@ const Dashboard = () => {
                           console.log(v.id);
                           deletTodoDatabase(v.id);
                         }}
+                        disabled={deletingId === v.id}
                         aria-label={`Delete "${v.title}"`}
-                        className="rounded p-1 text-slate-400 transition-colors duration-150 hover:bg-red-50 hover:text-red-600"
+                        className="flex h-8 w-8 items-center justify-center rounded p-1.5 text-slate-400 transition-colors duration-150 hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                        </svg>
+                        {deletingId === v.id ? (
+                          <Spinner className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                   </li>
                 ))}
               </ul>
 
-              <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4">
-                <p className="text-xs text-slate-500">{todo.length} task{todo.length !== 1 ? "s" : ""} in total</p>
+              <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-4">
+                <p className="text-xs text-slate-500">{totalCount} task{totalCount !== 1 ? "s" : ""} in total</p>
                 <button
                   type="button"
                   onClick={() => setShowConfirm(true)}
-                  className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition-all duration-150 hover:-translate-y-0.5 hover:border-red-400 hover:bg-red-50 hover:shadow-sm"
+                  disabled={clearing}
+                  className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition-all duration-150 hover:-translate-y-0.5 hover:border-red-400 hover:bg-red-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                 >
                   Delete All
                 </button>
@@ -323,26 +415,29 @@ const Dashboard = () => {
 
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-          <div className="absolute inset-0 animate-fade-in bg-slate-900/50" onClick={() => setShowConfirm(false)} />
+          <div className="absolute inset-0 animate-fade-in bg-slate-900/50" onClick={() => { if (!clearing) setShowConfirm(false); }} />
           <div className="relative w-full max-w-sm animate-fade-in-scale rounded-xl bg-white p-6 shadow-2xl">
             <h2 id="confirm-title" className="text-lg font-bold text-slate-900">Delete all todos?</h2>
             <p className="mt-1 text-sm text-slate-500">
-              This will permanently remove all {todo.length} of your tasks. This action cannot be undone.
+              This will permanently remove all {totalCount} of your tasks. This action cannot be undone.
             </p>
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition-all duration-150 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 active:scale-[0.98]"
+                disabled={clearing}
+                className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition-all duration-150 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={clearAll}
-                className="flex-1 rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-200/60 transition-all duration-150 hover:-translate-y-0.5 hover:from-red-500 hover:to-red-400 hover:shadow-lg hover:shadow-red-200/60 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-[0.98]"
+                disabled={clearing}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-200/60 transition-all duration-150 hover:-translate-y-0.5 hover:from-red-500 hover:to-red-400 hover:shadow-lg hover:shadow-red-200/60 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:from-red-600 disabled:hover:to-red-500 disabled:hover:shadow-md"
               >
-                Delete all
+                {clearing && <Spinner className="h-4 w-4" />}
+                {clearing ? "Deleting all…" : "Delete all"}
               </button>
             </div>
           </div>
